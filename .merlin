@@ -1,6 +1,12 @@
-PKG lablgtk2.sourceview2
+S ide
+B _build/ide
 
-S utils
-B utils
+S ide_top
+B _build/ide_top
 
-REC
+S ide_utils
+B _build/ide_utils
+
+S xml
+B _build/xml
+
