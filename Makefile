@@ -1,7 +1,7 @@
 .PHONY: clean all ide
 
 OCB=ocamlbuild
-OCB_OPT=-use-ocamlfind -j 4 -no-hygiene
+OCB_OPT=-use-ocamlfind -j 4
 
 all: ide
 
