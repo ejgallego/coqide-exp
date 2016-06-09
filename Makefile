@@ -1,20 +1,20 @@
-.PHONY: clean all ide
+.PHONY: clean all ide-native ide-byte
 
 OCB=ocamlbuild
 OCB_OPT=-use-ocamlfind -j 4
 
-all: ide
+all: ide-native
 
-TARGET=byte
+ide-native:
+	rm -f coqidetop.cmxs
+	$(OCB) $(OCB_OPT) ide_top/coqidetop.cmxs ide/coqide_main.native
+	cp -a _build/ide_top/coqidetop.cmxs .
 
-ide:
-	rm -f coqidetop.cma coqidetop.cmxs
-	OCAMLFIND_IGNORE_DUPS_IN=/home/egallego/.opam/4.03.0/lib/ocaml/compiler-libs/ \
-	$(OCB) $(OCB_OPT) ide_top/coqidetop.cma
-	$(OCB) $(OCB_OPT) ide_top/coqidetop.cmxs
-	$(OCB) $(OCB_OPT) ide/coqide_main.byte
-	$(OCB) $(OCB_OPT) ide/coqide_main.native
-	cp -a _build/ide_top/coqidetop.cma _build/ide_top/coqidetop.cmxs .
+ide-byte:
+	rm -f coqidetop.cma
+	$(OCB) $(OCB_OPT) ide_top/coqidetop.cma ide/coqide_main.byte
+	cp -a _build/ide_top/coqidetop.cma
+
 clean:
 	$(OCB) $(OCB_OPT) -clean
 	rm -f coqidetop.cma coqidetop.cmxs
