@@ -1,7 +1,19 @@
 true: rectypes, thread, bin_annot, annot
 true: package(str), package(unix), package(threads)
 
-#true: warn(+1..49-4), warn_error(+1..49), safe_string
+# Refine Warnings!
+# - Warning 6: label ? was omitted in the application of this function.
+# - Warning 7: the method ? is overridden.
+# - Warning 9: the following labels are not bound in this record pattern:
+# - Warning 27: unused variable ?
+# - Warning 32: unused variable ?
+# - Warning 44: this open statement shadows the value identifier ? (which is later used)
+# - Warning 48: implicit elimination of optional arguments ?
+# - Warning 52: the argument of this constructor should not be matched against a
+#               constant pattern; the actual value of the argument could change
+#               in the future.
+true: warn(+1..49-4-29), warn_error(+1..49-4-6-7-9-27-32-41-44-45-48-52)
+# true: safe_string
 
 <ide_protocol>: include
 <ide_protocol/*.{ml,mli}>: coq_lib, coq_kernel, coq_library, coq_intf, coq_interp, coq_printing, coq_proofs

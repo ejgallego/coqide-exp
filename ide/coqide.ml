@@ -882,7 +882,7 @@ let alpha_items menu_name item_name l =
     | [s] -> mk_item s
     | s::_ as ll ->
       let name = item_name^" "^(String.make 1 s.[0]) in
-      let label = "_@..." in label.[1] <- s.[0];
+      let label = "_@..." in Bytes.set label 1 s.[0];
       item name ~label menu_name;
       List.iter mk_item ll
   in

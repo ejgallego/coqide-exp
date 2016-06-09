@@ -266,7 +266,7 @@ let coqtop_path () =
       match cmd_coqtop#get with
 	| Some s -> s
 	| None ->
-	  let prog = String.copy Sys.executable_name in
+	  let prog = Bytes.copy Sys.executable_name in
 	  try
 	    let pos = String.length prog - 6 in
 	    let i = Str.search_backward (Str.regexp_string "coqide") prog pos
@@ -329,7 +329,7 @@ let stat f =
 
 let maxread = 4096
 
-let read_string = String.create maxread
+let read_string = Bytes.create maxread
 let read_buffer = Buffer.create maxread
 
 (** Read the content of file [f] and add it to buffer [b].
