@@ -37,7 +37,7 @@ let get_syntactic_completion (buffer : GText.buffer) pattern accu =
 
 (** Retrieve completion proposals in Coq libraries *)
 let get_semantic_completion pattern accu =
-  let flags = [Interface.Name_Pattern ("^" ^ pattern), true] in
+  let flags = [Coq.Name_Pattern ("^" ^ pattern), true] in
   (** Only get the last part of the qualified name *)
   let rec last accu = function
   | [] -> accu
@@ -45,8 +45,8 @@ let get_semantic_completion pattern accu =
   | _ :: l -> last accu l
   in
   let next = function
-  | Interface.Good l ->
-    let fold accu elt = last accu elt.Interface.coq_object_qualid in
+  | Coq.Good l ->
+    let fold accu elt = last accu elt.Coq.coq_object_qualid in
     let ans = List.fold_left fold accu l in
     Coq.return ans
   | _ -> Coq.return accu

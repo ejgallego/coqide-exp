@@ -12,8 +12,8 @@ class type proof_view =
     method buffer : GText.buffer
     method refresh : unit -> unit
     method clear : unit -> unit
-    method set_goals : Interface.goals option -> unit
-    method set_evars : Interface.evar list option -> unit
+    method set_goals : Coq.goals option -> unit
+    method set_evars : Coq.evar list option -> unit
     method width : int
   end
 

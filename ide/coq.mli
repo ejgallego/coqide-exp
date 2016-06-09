@@ -36,6 +36,8 @@ type 'a task
     should do so using the monadic primitives.
 *)
 
+(* The fail case carries the current state_id of the prover, the GUI
+   should probably retract to that point *)
 val return : 'a -> 'a task
 (** Monadic return of values as tasks. *)
 
@@ -104,33 +106,117 @@ val try_grab : coqtop -> unit task -> (unit -> unit) -> unit
 
 (** {5 Atomic calls to coqtop} *)
 
-(**
-  These atomic calls can be combined to form arbitrary multi-call tasks.
-  They correspond to the protocol calls (cf [Serialize] for more details).
-  Note that each call is asynchronous: it will return immediately,
-  but the inner callback will be executed later to handle the call answer
-  when this answer is available.
-  Except for interp, we use the default logger for any call. *)
+(** These atomic calls can be combined to form arbitrary multi-call
+    tasks.  They correspond to the protocol calls. Note that each call
+    is asynchronous: it will return immediately, but the inner
+    callback will be executed later to handle the call answer when
+    this answer is available.  Except for interp, we use the default
+    logger for any call. *)
 
-type 'a query = 'a Interface.value task
+type location = (int * int) option (* start and end of the error *)
+
+type 'a value =
+  | Good of 'a
+  | Fail of (Stateid.t * location * Richpp.richpp)
+
+type 'a query = 'a value task
+
 (** A type abbreviation for coqtop specific answers *)
 
-val add        : ?logger:Ideutils.logger ->
-                 Interface.add_sty        -> Interface.add_rty query
-val edit_at    : Interface.edit_at_sty    -> Interface.edit_at_rty query
-val query      : ?logger:Ideutils.logger ->
-                 Interface.query_sty      -> Interface.query_rty query
-val status     : ?logger:Ideutils.logger ->
-                 Interface.status_sty     -> Interface.status_rty query
-val goals      : ?logger:Ideutils.logger ->
-                 Interface.goals_sty      -> Interface.goals_rty query
-val evars      : Interface.evars_sty      -> Interface.evars_rty query
-val hints      : Interface.hints_sty      -> Interface.hints_rty query
-val mkcases    : Interface.mkcases_sty    -> Interface.mkcases_rty query
-val search     : Interface.search_sty     -> Interface.search_rty query
-val init       : Interface.init_sty       -> Interface.init_rty query
+type verbose = bool
+(**  [add ((s,eid),(sid,v))] adds the phrase [s] with edit id [eid]
+     on top of the current edit position (that is asserted to be [sid])
+     verbosely if [v] is true.  The response [(id,(rc,s)] is the new state
+     [id] assigned to the phrase, some output [s].  [rc] is [Inl] if the new
+     state id is the tip of the edit point, or [Inr tip] if the new phrase
+     closes a focus and [tip] is the new edit tip *)
+val add :
+     ?logger:Ideutils.logger
+  -> (string * Feedback.edit_id) * (Stateid.t * verbose)
+  -> (Stateid.t * ((unit, Stateid.t) Util.union * string)) query
 
-val stop_worker: Interface.stop_worker_sty-> Interface.stop_worker_rty query
+(** [edit_at id] declares the user wants to edit just after [id].
+    The response is [Inl] if the document has been rewound to that point,
+    [Inr (start,(stop,tip))] if [id] is in a zone that can be focused.
+    In that case the zone is delimited by [start] and [stop] while [tip]
+    is the new document [tip].  Edits made by subsequent [add] are always
+    performend on top of [id]. *)
+val edit_at :
+     Stateid.t
+  -> (unit, Stateid.t * (Stateid.t * Stateid.t)) Util.union query
+
+(** [query s id] executes [s] at state [id] and does not record any state
+    change but for the printings that are sent in response *)
+val query : ?logger:Ideutils.logger -> string * Stateid.t -> string query
+
+(** The status, for instance "Ready in SomeSection, proving Foo", the
+    input boolean (if true) forces the evaluation of all unevaluated
+    statements *)
+type status = {
+  status_path : string list;
+  (** Module path of the current proof *)
+  status_proofname : string option;
+  (** Current proof name. [None] if no focussed proof is in progress *)
+  status_allproofs : string list;
+  (** List of all pending proofs. Order is not significant *)
+  status_proofnum : int;
+  (** An id describing the state of the current proof. *)
+}
+
+val status : ?logger:Ideutils.logger -> bool -> status query
+
+(** The type of coqtop goals *)
+type goal = {
+  goal_id : string;
+  (** Unique goal identifier *)
+  goal_hyp : Richpp.richpp list;
+  (** List of hypotheses *)
+  goal_ccl : Richpp.richpp;
+  (** Goal conclusion *)
+}
+
+type 'a pre_goals = {
+  fg_goals : 'a list;
+  (** List of the focussed goals *)
+  bg_goals : ('a list * 'a list) list;
+  (** Zipper representing the unfocused background goals *)
+  shelved_goals : 'a list;
+  (** List of the goals on the shelf. *)
+  given_up_goals : 'a list;
+  (** List of the goals that have been given up *)
+}
+
+type goals = goal pre_goals
+
+(** Fetching the list of current goals. Return [None] if no proof is in
+    progress, [Some gl] otherwise. *)
+val goals : ?logger:Ideutils.logger -> unit -> goals option query
+
+(** Retrieve the list of unintantiated evars in the current proof. [None] if no
+    proof is in progress. *)
+type evar = {
+  evar_info : string;
+  (** A string describing an evar: type, number, environment *)
+}
+
+val evars      : unit -> evar list option query
+
+(** Retrieving the tactics applicable to the current goal. [None] if there is
+    no proof in progress. *)
+type hint = (string * string) list
+val hints : unit -> (hint list * hint) option query
+
+(** Create a "match" template for a given inductive type.
+    For each branch of the match, we list the constructor name
+    followed by enough pattern variables. *)
+val mkcases    : string -> string list list query
+
+(** Initialize, and return the initial state id.  The argument is the filename.
+    If its directory is not in dirpath, it adds it.  It also loads
+    compilation hints for the filename. *)
+val init       : string option -> Stateid.t query
+
+val stop_worker: string -> unit query
 
 (** A specialized version of [raw_interp] dedicated to set/unset options. *)
 
@@ -150,6 +236,37 @@ sig
 
   val enforce : unit task
 end
+
+(** {5 Search} *)
+
+type search_constraint =
+(** Whether the name satisfies a regexp (uses Ocaml Str syntax) *)
+| Name_Pattern of string
+(** Whether the object type satisfies a pattern *)
+| Type_Pattern of string
+(** Whether some subtype of object type satisfies a pattern *)
+| SubType_Pattern of string
+(** Whether the object pertains to a module *)
+| In_Module of string list
+(** Bypass the Search blacklist *)
+| Include_Blacklist
+
+(** A list of search constraints; the boolean flag is set to [false] whenever
+    the flag should be negated. *)
+type search_flags = (search_constraint * bool) list
+
+(** A named object in Coq. [coq_object_qualid] is the shortest path defined for
+    the user. [coq_object_prefix] is the missing part to recover the fully
+    qualified name, i.e [fully_qualified = coq_object_prefix + coq_object_qualid].
+    [coq_object_object] is the actual content of the object. *)
+type 'a coq_object = {
+  coq_object_prefix : string list;
+  coq_object_qualid : string list;
+  coq_object_object : 'a;
+}
+
+(** Search for objects satisfying the given search flags. *)
+val search     : search_flags -> string coq_object list query
 
 (** {5 Miscellaneous} *)
 
@@ -173,3 +290,4 @@ val check_connection : string list -> unit
     may terminate coqide in case of trouble *)
 
 val interrupter : (int -> unit) ref
+

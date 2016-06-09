@@ -106,11 +106,11 @@ object(self)
       in
       let process =
 	Coq.bind (Coq.query ~logger:log (phrase,Stateid.dummy)) (function
-          | Interface.Fail (_,l,str) ->
+          | Coq.Fail (_,l,str) ->
             Ideutils.insert_xml result#buffer str;
             notebook#set_page ~tab_label:(new_tab_lbl "Error") frame#coerce;
 	    Coq.return ()
-          | Interface.Good res ->
+          | Coq.Good res ->
             result#buffer#insert res; 
             notebook#set_page ~tab_label:(new_tab_lbl arg) frame#coerce;
 	    Coq.return ())

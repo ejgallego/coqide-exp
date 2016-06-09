@@ -9,7 +9,6 @@
 open Util
 open Coq
 open Ideutils
-open Interface
 open Feedback
 
 let b2c = byte_offset_to_char_offset
@@ -148,7 +147,7 @@ object
   method get_errors : (int * string) list
   method get_slaves_status : int * int * string CString.Map.t
 
-  method handle_failure : handle_exn_rty -> unit task
+  method handle_failure : Stateid.t * Coq.location * Richpp.richpp -> unit task
 
   method destroy : unit -> unit
 end

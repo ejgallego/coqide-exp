@@ -1,12 +1,11 @@
 S ide
 B _build/ide
 
-S ide_top
-B _build/ide_top
+S /home/egallego/external/coq-git/**
+B /home/egallego/external/coq-git/**
 
-S ide_utils
-B _build/ide_utils
+S /home/egallego/research/coq-serapi/**
+B /home/egallego/research/coq-serapi/_build/**
 
-S xml
-B _build/xml
+PKG unix lablgtk2 lablgtk2.sourceview2 sexplib ppx_sexp_conv
 

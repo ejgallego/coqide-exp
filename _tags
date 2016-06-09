@@ -1,5 +1,5 @@
 true: rectypes, thread, bin_annot, annot
-true: package(str), package(unix), package(threads)
+true: package(str), package(unix), package(threads), package(sexplib), package(ppx_sexp_conv)
 
 # Refine Warnings!
 # - Warning 6: label ? was omitted in the application of this function.
@@ -15,14 +15,7 @@ true: package(str), package(unix), package(threads)
 true: warn(+1..49-4-29), warn_error(+1..49-4-6-7-9-27-32-41-44-45-48-52)
 # true: safe_string
 
-<ide_protocol>: include
-<ide_protocol/*.{ml,mli}>: coq_lib, coq_kernel, coq_library, coq_intf, coq_interp, coq_printing, coq_proofs
-
-# Don't relink coq again to the plugin!!!
-<ide_top/*.{mli,ml}>: coq_config, coq_lib, coq_clib, coq_kernel, coq_vm, coq_library, coq_intf, coq_engine, coq_pretyping
-<ide_top/*.{mli,ml}>: coq_interp, coq_parsing, coq_grammar, coq_printing, coq_tactics, coq_stm, coq_proofs, coq_toplevel
-
-<ide/*>: package(lablgtk2.sourceview2)
-<ide/*>: coq_config, coq_lib, coq_clib
+<ide/*>: package(lablgtk2), package(lablgtk2.sourceview2)
+<ide/*>: coq_config, coq_lib, coq_clib, use_serapi
 <ide/project_file.ml>: syntax(camlp4o), package(camlp4.macro)
 <ide/coqide_main.ml>:  syntax(camlp4o), package(camlp4.macro)

@@ -16,8 +16,8 @@ class type proof_view =
     method buffer : GText.buffer
     method refresh : unit -> unit
     method clear : unit -> unit
-    method set_goals : Interface.goals option -> unit
-    method set_evars : Interface.evar list option -> unit
+    method set_goals : Coq.goals option -> unit
+    method set_evars : Coq.evar list option -> unit
     method width : int
   end
 
@@ -50,7 +50,7 @@ let hook_tag_cb tag menu_content sel_cb hover_cb =
 
 let mode_tactic sel_cb (proof : #GText.view_skel) goals hints = match goals with
   | [] -> assert false
-  | { Interface.goal_hyp = hyps; Interface.goal_ccl = cur_goal; } :: rem_goals ->
+  | { Coq.goal_hyp = hyps; Coq.goal_ccl = cur_goal; } :: rem_goals ->
       let on_hover sel_start sel_stop =
         proof#buffer#remove_tag
           ~start:proof#buffer#start_iter
@@ -102,7 +102,7 @@ let mode_tactic sel_cb (proof : #GText.view_skel) goals hints = match goals with
         proof#buffer#insert "\n"
       in
       (* Insert remaining goals (no hypotheses) *)
-      let fold_goal i _ { Interface.goal_ccl = g } =
+      let fold_goal i _ { Coq.goal_ccl = g } =
         proof#buffer#insert (goal_str i goals_cnt);
         insert_xml proof#buffer g;
         proof#buffer#insert "\n"
@@ -125,7 +125,7 @@ let display mode (view : #GText.view_skel) goals hints evars =
   match goals with
   | None -> ()
     (* No proof in progress *)
-  | Some { Interface.fg_goals = []; bg_goals = bg; shelved_goals; given_up_goals; } ->
+  | Some { Coq.fg_goals = []; bg_goals = bg; shelved_goals; given_up_goals; } ->
     let bg = flatten (List.rev bg) in
     let evars = match evars with None -> [] | Some evs -> evs in
     begin match (bg, shelved_goals,given_up_goals, evars) with
@@ -135,7 +135,7 @@ let display mode (view : #GText.view_skel) goals hints evars =
       (* A proof has been finished, but not concluded *)
       view#buffer#insert "No more subgoals, but there are non-instantiated existential variables:\n\n";
       let iter evar =
-        let msg = Printf.sprintf "%s\n" evar.Interface.evar_info in
+        let msg = Printf.sprintf "%s\n" evar.Coq.evar_info in
         view#buffer#insert msg
       in
       List.iter iter evars;
@@ -144,7 +144,7 @@ let display mode (view : #GText.view_skel) goals hints evars =
       (* The proof is finished, with the exception of given up goals. *)
       view#buffer#insert "No more subgoals, but there are some goals you gave up:\n\n";
       let iter goal =
-        insert_xml view#buffer goal.Interface.goal_ccl;
+        insert_xml view#buffer goal.Coq.goal_ccl;
         view#buffer#insert "\n"
       in
       List.iter iter given_up_goals;
@@ -153,7 +153,7 @@ let display mode (view : #GText.view_skel) goals hints evars =
       (* All the goals have been resolved but those on the shelf. *)
       view#buffer#insert "All the remaining goals are on the shelf:\n\n";
       let iter goal =
-        insert_xml view#buffer goal.Interface.goal_ccl;
+        insert_xml view#buffer goal.Coq.goal_ccl;
         view#buffer#insert "\n"
       in
       List.iter iter shelved_goals
@@ -166,12 +166,12 @@ let display mode (view : #GText.view_skel) goals hints evars =
       view#buffer#insert "This subproof is complete, but there are some unfocused goals:\n\n";
       let iter i goal =
         let () = view#buffer#insert (goal_str (succ i)) in
-        insert_xml view#buffer goal.Interface.goal_ccl;
+        insert_xml view#buffer goal.Coq.goal_ccl;
         view#buffer#insert "\n"
       in
       List.iteri iter bg
     end
-  | Some { Interface.fg_goals = fg } ->
+  | Some { Coq.fg_goals = fg } ->
     mode view fg hints
 
 let proof_view () =

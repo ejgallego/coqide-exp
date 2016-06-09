@@ -6,6 +6,8 @@ let opam_location = "/home/egallego/.opam/4.03.0/lib/"
 let p s     = coq_location ^ s
 let q s lib = coq_location ^ s ^ "/" ^ lib
 
+let sa lib  = "/home/egallego/research/coq-serapi/_build/" ^ lib
+
 let () =
   dispatch begin function
     | After_rules ->
@@ -50,6 +52,9 @@ let () =
       ocaml_lib ~extern:true ~dir:(p "toplevel") ~tag_name:"coq_toplevel" (q "toplevel"  "toplevel");
       ocaml_lib ~extern:true ~dir:(p "parsing")  ~tag_name:"coq_hparsing" (q "parsing"   "highparsing");
       ocaml_lib ~extern:true ~dir:(p "ltac")     ~tag_name:"coq_ltac"     (q "ltac"      "ltac");
+
+      flag ["ocaml"; "compile"; "use_serapi"] (S [A "-I"; P (sa "sertop")]);
+      (* ocaml_lib ~extern:true ~dir:(sa "sertop")  ~tag_name:"use_serapi"   ""; *)
     | _ -> ()
   end
 

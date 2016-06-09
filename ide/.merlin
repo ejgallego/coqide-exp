@@ -1,2 +1,2 @@
-PKG lablgtk2.sourceview2
 REC
+PKG lablgtk2 lablgtk2.sourceview2

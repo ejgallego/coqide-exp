@@ -523,13 +523,13 @@ end
 let update_status sn =
   let display msg = pop_info (); push_info msg in
   let next = function
-  | Interface.Fail x -> sn.coqops#handle_failure x
-  | Interface.Good status ->
-    let path = match status.Interface.status_path with
+  | Coq.Fail x -> sn.coqops#handle_failure x
+  | Coq.Good status ->
+    let path = match status.Coq.status_path with
       | [] | _ :: [] -> "" (* Drop the topmost level, usually "Top" *)
       | _ :: l -> " in " ^ String.concat "." l
     in
-    let name = match status.Interface.status_proofname with
+    let name = match status.Coq.status_proofname with
       | None -> ""
       | Some n -> ", proving " ^ n
     in
@@ -619,9 +619,9 @@ let print_branches c cases =
     (Minilib.print_list print_branch) cases
 
 let display_match sn = function
-  |Interface.Fail _ ->
+  | Coq.Fail _ ->
     flash_info "Not an inductive type"; Coq.return ()
-  |Interface.Good cases ->
+  | Coq.Good cases ->
     let text =
       let buf = Buffer.create 1024 in
       let () = print_branches (Format.formatter_of_buffer buf) cases in
@@ -656,9 +656,9 @@ let searchabout sn =
   let word = get_current_word sn in
   let buf = sn.messages#buffer in
   let insert result =
-    let qualid = result.Interface.coq_object_qualid in
+    let qualid = result.Coq.coq_object_qualid in
     let name = String.concat "." qualid in
-    let tpe = result.Interface.coq_object_object in
+    let tpe = result.Coq.coq_object_object in
     buf#insert ~tags:[Tags.Message.item] name;
     buf#insert "\n";
     buf#insert tpe;
@@ -666,11 +666,11 @@ let searchabout sn =
   in
   let display_results r =
     sn.messages#clear;
-    List.iter insert (match r with Interface.Good l -> l | _ -> []);
+    List.iter insert (match r with Coq.Good l -> l | _ -> []);
     Coq.return ()
   in
   let launch_query =
-    let search = Coq.search [Interface.SubType_Pattern word, true] in
+    let search = Coq.search [Coq.SubType_Pattern word, true] in
     Coq.bind search display_results
   in
   Coq.try_grab sn.coqtop launch_query ignore

@@ -27,9 +27,8 @@ object
   method get_errors : (int * string) list
   method get_slaves_status : int * int * string CString.Map.t
 
+  method handle_failure : Stateid.t * Coq.location * Richpp.richpp -> unit task
 
-  method handle_failure : Interface.handle_exn_rty -> unit task
-  
   method destroy : unit -> unit
 end
 

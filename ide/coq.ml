@@ -22,7 +22,7 @@ let get_version_date () =
       (Filename.dirname Sys.executable_name)
       Filename.parent_dir_name
     in
-    let ch = open_in (Filename.concat coqroot "revision") in
+    let ch  = open_in (Filename.concat coqroot "revision") in
     let ver = input_line ch in
     let rev = input_line ch in
     (ver,rev)
@@ -46,9 +46,7 @@ let version () =
       (Filename.basename Sys.executable_name)
       Coq_config.best
 
-
 (** * Initial checks by launching test coqtop processes *)
-
 let rec read_all_lines in_chan =
   try
     let arg = input_line in_chan in
@@ -174,12 +172,12 @@ type void = Void
     Reference: http://alan.petitepomme.net/cwn/2004.01.13.html
     To rewrite someday with GADT. *)
 
-type 'a poly_ccb = 'a Xmlprotocol.call * ('a Interface.value -> void)
-type 't scoped_ccb = { bind_ccb : 'a. 'a poly_ccb -> 't }
-type ccb = { open_ccb : 't. 't scoped_ccb -> 't }
+(* type 'a poly_ccb = 'a Xmlprotocol.call * ('a Interface.value -> void) *)
+(* type 't scoped_ccb = { bind_ccb : 'a. 'a poly_ccb -> 't } *)
+(* type ccb = { open_ccb : 't. 't scoped_ccb -> 't } *)
 
-let mk_ccb poly = { open_ccb = fun scope -> scope.bind_ccb poly }
-let with_ccb ccb e = ccb.open_ccb e
+(* let mk_ccb poly = { open_ccb = fun scope -> scope.bind_ccb poly } *)
+(* let with_ccb ccb e = ccb.open_ccb e *)
 
 let interrupter = ref (fun pid -> Unix.kill pid Sys.sigint)
 
@@ -203,9 +201,8 @@ module CoqTop = Spawn.Async(GlibMainLoop)
 
 type handle = {
   proc : CoqTop.process;
-  xml_oc : Xml_printer.t;
-  mutable alive : bool;
-  mutable waiting_for : (ccb * logger) option; (* last call + callback + log *)
+  mutable alive       : bool;
+  mutable waiting_for : logger option; (* last call + callback + log *)
 }
 
 (** Coqtop process status :
@@ -217,7 +214,7 @@ type handle = {
   - Closed : the coqide buffer has been closed, we discard any further task.
 *)
 
-type status = New | Ready | Busy | Closed
+type coq_status = New | Ready | Busy | Closed
 
 type 'a task = handle -> ('a -> void) -> void
 
@@ -232,7 +229,7 @@ type coqtop = {
   mutable feedback_handler : Feedback.feedback -> unit;
   (* actual coqtop process and its status *)
   mutable handle : handle;
-  mutable status : status;
+  mutable status : coq_status;
 }
 
 let return (x : 'a) : 'a task =
@@ -292,7 +289,8 @@ let rec check_errors = function
 
 let handle_intermediate_message handle level content =
   let logger  = match handle.waiting_for with
-    | Some (_, l) -> l
+    | Some l -> l
+    (* | Some (_, l) -> l *)
     | None -> function
         | Feedback.Error   -> fun s -> Minilib.log ~level:`ERROR   (xml_to_string s)
         | Feedback.Info    -> fun s -> Minilib.log ~level:`INFO    (xml_to_string s)
@@ -302,23 +300,28 @@ let handle_intermediate_message handle level content =
   in
   logger level content
 
-let handle_feedback feedback_processor xml =
-  let feedback = Xmlprotocol.to_feedback xml in
-  feedback_processor feedback
+(* let handle_feedback feedback_processor xml = *)
+(*   let feedback = Xmlprotocol.to_feedback xml in *)
+(*   feedback_processor feedback *)
+
+exception AnswerNotHandled of string
 
 let handle_final_answer handle xml =
   let () = Minilib.log "Handling coqtop answer" in
   let ccb = match handle.waiting_for with
-    | None -> raise (AnswerWithoutRequest (Xml_printer.to_string_fmt xml))
-    | Some (c, _) -> c in
-  let () = handle.waiting_for <- None in
-  with_ccb ccb { bind_ccb = fun (c, f) -> f (Xmlprotocol.to_answer c xml) }
+    | None        -> raise (AnswerWithoutRequest "XXX")
+    | Some _      -> raise (AnswerNotHandled "XXX")
+  in ccb
+(* c in *)
+(*   let () = handle.waiting_for <- None in *)
+(*   with_ccb ccb { bind_ccb = fun (c, f) -> f (Xmlprotocol.to_answer c xml) } *)
 
 type input_state = {
   mutable fragment : string;
   mutable lexerror : int option;
 }
 
+(*
 let unsafe_handle_input handle feedback_processor state conds ~read_all =
   check_errors conds;
   let s = read_all () in
@@ -354,13 +357,19 @@ let unsafe_handle_input handle feedback_processor state conds ~read_all =
         twice at the same place, then this is a non-recoverable error *)
     if state.lexerror = Some l_end then raise e;
     state.lexerror <- Some l_end
+*)
+
+(* let print_exception = function *)
+(*   | Xml_parser.Error e -> Xml_parser.error e *)
+(*   | Serialize.Marshal_error(expected,actual) -> *)
+(*       "Protocol violation. Expected: " ^ expected ^ " Actual: " *)
+(*         ^ Xml_printer.to_string actual *)
+(*   | e -> Printexc.to_string e *)
 
 let print_exception = function
-  | Xml_parser.Error e -> Xml_parser.error e
-  | Serialize.Marshal_error(expected,actual) ->
-      "Protocol violation. Expected: " ^ expected ^ " Actual: "
-        ^ Xml_printer.to_string actual
   | e -> Printexc.to_string e
+
+let unsafe_handle_input h fd st c ~read_all = ()
 
 let input_watch handle respawner feedback_processor =
   let state = { fragment = ""; lexerror = None; } in
@@ -403,7 +412,7 @@ let spawn_handle args respawner feedback_processor =
     CoqTop.spawn ?env prog args (input_watch handle respawner feedback_processor) in
   {
     proc;
-    xml_oc = Xml_printer.make (Xml_printer.TChannel oc);
+    (* xml_oc = Xml_printer.make (Xml_printer.TChannel oc); *)
     alive = true;
     waiting_for = None;
   })
@@ -478,9 +487,9 @@ let process_task coqtop task =
 
 let try_grab coqtop task abort =
   match coqtop.status with
-    |Closed -> ()
-    |Busy|New -> abort ()
-    |Ready -> process_task coqtop task
+    | Closed -> ()
+    | Busy | New -> abort ()
+    | Ready -> process_task coqtop task
 
 let init_coqtop coqtop task =
   assert (coqtop.status = New);
@@ -490,26 +499,28 @@ let init_coqtop coqtop task =
 
 (** Cf [Ide_intf] for more details *)
 
-type 'a query = 'a Interface.value task
+type location = (int * int) option (* start and end of the error *)
 
-let eval_call ?(logger=default_logger) call handle k =
+type 'a value =
+  | Good of 'a
+  | Fail of (Stateid.t * location * Richpp.richpp)
+
+type 'a query = 'a value task
+
+let proto_call ?(logger=default_logger) call handle k =
   (** Send messages to coqtop and prepare the decoding of the answer *)
-  Minilib.log ("Start eval_call " ^ Xmlprotocol.pr_call call);
+  Minilib.log ("Start proto_call ");
   assert (handle.alive && handle.waiting_for = None);
-  handle.waiting_for <- Some (mk_ccb (call,k), logger);
-  Xml_printer.print handle.xml_oc (Xmlprotocol.of_call call);
-  Minilib.log "End eval_call";
+  (* XXX Do the call *)
+  (* handle.waiting_for <- Some (mk_ccb *)
+  Minilib.log "End proto_call";
   Void
 
-let add ?(logger=default_logger) x = eval_call ~logger (Xmlprotocol.add x)
-let edit_at i = eval_call (Xmlprotocol.edit_at i)
-let query ?(logger=default_logger) x = eval_call ~logger (Xmlprotocol.query x)
-let mkcases s = eval_call (Xmlprotocol.mkcases s)
-let status ?logger force = eval_call ?logger (Xmlprotocol.status force)
-let hints x = eval_call (Xmlprotocol.hints x)
-let search flags = eval_call (Xmlprotocol.search flags)
-let init x = eval_call (Xmlprotocol.init x)
-let stop_worker x = eval_call (Xmlprotocol.stop_worker x)
+(**************************************************************************)
+(* Stop_worker                                                            *)
+(**************************************************************************)
+let stop_worker x =
+  proto_call (Ser_protocol.Quit)
 
 let break_coqtop coqtop workers =
   if coqtop.status = Busy then
@@ -575,17 +586,139 @@ struct
 
   let enforce h k =
     let mkopt o v acc = (o, Interface.BoolValue v) :: acc in
-    let opts = Hashtbl.fold mkopt current_state [] in
-    let opts = (width, Interface.IntValue !width_state) :: opts in
-    eval_call (Xmlprotocol.set_options opts) h
+    let opts = Hashtbl.fold mkopt current_state []        in
+    let _opts = (width, Interface.IntValue !width_state) :: opts in
+    (* XXX *)
+    proto_call () h
       (function
-	| Interface.Good () -> k ()
-	| _ -> failwith "Cannot set options. Resetting coqtop")
+	| Good () -> k ()
+	| _       -> failwith "Cannot set options. Resetting coqtop")
 
 end
 
+type verbose = bool
+
+(**************************************************************************)
+(* Add                                                                    *)
+(**************************************************************************)
+
+let add ?(logger=default_logger)   x = proto_call ~logger (Ser_protocol.Quit)
+
+(**************************************************************************)
+(* Edit_at                                                                *)
+(**************************************************************************)
+
+let edit_at                        i = proto_call         (Ser_protocol.Quit)
+
+(**************************************************************************)
+(* Query                                                                  *)
+(**************************************************************************)
+let query ?(logger=default_logger) x = proto_call ~logger (Ser_protocol.Quit)
+
+(**************************************************************************)
+(* mkcases                                                                *)
+(**************************************************************************)
+let mkcases                        s = proto_call         (Ser_protocol.Quit)
+
+(**************************************************************************)
+(* Status                                                                 *)
+(**************************************************************************)
+type status = {
+  status_path : string list;
+  (** Module path of the current proof *)
+  status_proofname : string option;
+  (** Current proof name. [None] if no focussed proof is in progress *)
+  status_allproofs : string list;
+  (** List of all pending proofs. Order is not significant *)
+  status_proofnum : int;
+  (** An id describing the state of the current proof. *)
+}
+let status ?logger force             = proto_call ?logger (Ser_protocol.Quit)
+
+(**************************************************************************)
+(* Init                                                                   *)
+(**************************************************************************)
+let init x                           = proto_call         (Ser_protocol.Quit)
+
+(**************************************************************************)
+(* Goals                                                                  *)
+(**************************************************************************)
+
+(** Fetching the list of current goals. Return [None] if no proof is in
+    progress, [Some gl] otherwise. *)
+(** The type of coqtop goals *)
+type goal = {
+  goal_id : string;
+  (** Unique goal identifier *)
+  goal_hyp : Richpp.richpp list;
+  (** List of hypotheses *)
+  goal_ccl : Richpp.richpp;
+  (** Goal conclusion *)
+}
+
+type 'a pre_goals = {
+  fg_goals : 'a list;
+  (** List of the focussed goals *)
+  bg_goals : ('a list * 'a list) list;
+  (** Zipper representing the unfocused background goals *)
+  shelved_goals : 'a list;
+  (** List of the goals on the shelf. *)
+  given_up_goals : 'a list;
+  (** List of the goals that have been given up *)
+}
+
+type goals = goal pre_goals
+
 let goals ?logger x h k =
-  PrintOpt.enforce h (fun () -> eval_call ?logger (Xmlprotocol.goals x) h k)
+  PrintOpt.enforce h (fun () -> proto_call ?logger (Ser_protocol.Quit) h k)
+
+(**************************************************************************)
+(* Evars                                                                  *)
+(**************************************************************************)
+
+(** Retrieve the list of unintantiated evars in the current proof. [None] if no
+    proof is in progress. *)
+type evar = {
+  evar_info : string;
+  (** A string describing an evar: type, number, environment *)
+}
 
 let evars x h k =
-  PrintOpt.enforce h (fun () -> eval_call (Xmlprotocol.evars x) h k)
+  PrintOpt.enforce h (fun () -> proto_call (Ser_protocol.Quit) h k)
+
+(**************************************************************************)
+(* Hints                                                                  *)
+(**************************************************************************)
+type hint = (string * string) list
+let hints x                          = proto_call         (Ser_protocol.Quit)
+
+(**************************************************************************)
+(* Search                                                                 *)
+(**************************************************************************)
+
+type search_constraint =
+(** Whether the name satisfies a regexp (uses Ocaml Str syntax) *)
+| Name_Pattern of string
+(** Whether the object type satisfies a pattern *)
+| Type_Pattern of string
+(** Whether some subtype of object type satisfies a pattern *)
+| SubType_Pattern of string
+(** Whether the object pertains to a module *)
+| In_Module of string list
+(** Bypass the Search blacklist *)
+| Include_Blacklist
+
+(** A list of search constraints; the boolean flag is set to [false] whenever
+    the flag should be negated. *)
+type search_flags = (search_constraint * bool) list
+
+(** A named object in Coq. [coq_object_qualid] is the shortest path defined for
+    the user. [coq_object_prefix] is the missing part to recover the fully
+    qualified name, i.e [fully_qualified = coq_object_prefix + coq_object_qualid].
+    [coq_object_object] is the actual content of the object. *)
+type 'a coq_object = {
+  coq_object_prefix : string list;
+  coq_object_qualid : string list;
+  coq_object_object : 'a;
+}
+let search flags                     = proto_call         (Ser_protocol.Quit)
