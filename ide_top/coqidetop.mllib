@@ -2,7 +2,6 @@ Xml_lexer
 Xml_parser
 Xml_printer
 Serialize
-Richprinter
 Xmlprotocol
 Texmacspp
 Ide_slave
