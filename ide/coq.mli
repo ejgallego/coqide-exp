@@ -8,16 +8,47 @@
 
 (** Coq : Interaction with the Coq toplevel *)
 
-(** {5 General structures} *)
+(** {5 Coqtop process management} *)
 
 type coqtop
 (** The structure describing a coqtop sub-process .
 
-    Liveness management of coqtop is automatic. Whenever a coqtop dies abruptly,
-    this module is responsible for relaunching the whole process. The reset
-    handler set through [set_reset_handler] will be called after such an
-    abrupt failure. It is also called when explicitly requesting coqtop to
-    reset. *)
+    SerTop can't never die, and if it does it is a critical
+    bug. Resetting amounts to closing and creating a new coqtop.
+  *)
+
+(** Creation functions:  *)
+
+type coqtop_opts = {
+  argv       : string array;              (* Command line arguments *)
+  (* fb_handler : Feedback.feedback -> unit; (\* Feedback handler       *\) *)
+}
+
+val spawn_coqtop : coqtop_opts -> coqtop
+(** Create and initialize a coqtop process with some options. *)
+
+val break_coqtop : coqtop -> string list -> unit
+(** Interrupt the current computation of coqtop or the worker if coqtop it not running. *)
+
+val close_coqtop : coqtop -> unit
+(** Close coqtop. Subsequent requests will be discarded. Hook ignored. *)
+
+val reset_coqtop : coqtop -> unit
+(** Reset coqtop. *)
+
+val is_computing : coqtop -> bool
+(** Check if coqtop is computing, i.e. already has a current task *)
+
+val get_arguments : coqtop -> string array
+(** Return arguments   *)
+
+val set_feedback_handler : coqtop -> (Feedback.feedback -> unit) -> unit
+(** Set feedback handler *)
+
+(** In win32, sockets are not like regular files *)
+val gio_channel_of_descr_socket : (Unix.file_descr -> Glib.Io.channel) ref
+
+(** {5 Task processing} *)
 
 type 'a task
 (** Coqtop tasks.
@@ -50,49 +81,6 @@ val lift : (unit -> 'a) -> 'a task
 val seq : unit task -> 'a task -> 'a task
 (** Sequential composition *)
 
-(** {5 Coqtop process management} *)
-
-type reset_kind = Planned | Unexpected
-(** A reset may occur accidentally or voluntarily, so we discriminate between
-    these. *)
-
-val is_computing : coqtop -> bool
-(** Check if coqtop is computing, i.e. already has a current task *)
-
-val spawn_coqtop : string list -> coqtop
-(** Create a coqtop process with some command-line arguments. *)
-
-val set_reset_handler : coqtop -> (reset_kind -> unit task) -> unit
-(** Register a handler called when a coqtop dies (badly or on purpose) *)
-
-val set_feedback_handler : coqtop -> (Feedback.feedback -> unit) -> unit
-(** Register a handler called when coqtop sends a feedback message *)
-
-val init_coqtop : coqtop -> unit task -> unit
-(** Finish initializing a freshly spawned coqtop, by running a first task on it.
-    The task should run its inner continuation at the end. *)
-
-val break_coqtop : coqtop -> string list -> unit
-(** Interrupt the current computation of coqtop or the worker if coqtop it not running. *)
-
-val close_coqtop : coqtop -> unit
-(** Close coqtop. Subsequent requests will be discarded. Hook ignored. *)
-
-val reset_coqtop : coqtop -> unit
-(** Reset coqtop. Pending requests will be discarded. The reset handler
-    of coqtop will be called with [Planned] as first argument *)
-
-val get_arguments : coqtop -> string list
-(** Get the current arguments used by coqtop. *)
-
-val set_arguments : coqtop -> string list -> unit
-(** Set process arguments. This also forces a planned reset. *)
-
-(** In win32, sockets are not like regular files *)
-val gio_channel_of_descr_socket : (Unix.file_descr -> Glib.Io.channel) ref
-
-(** {5 Task processing} *)
-
 val try_grab : coqtop -> unit task -> (unit -> unit) -> unit
 (** Try to schedule a task on a coqtop. If coqtop is available, the task
     callback is run (asynchronously), otherwise the [(unit->unit)] callback
@@ -104,7 +92,7 @@ val try_grab : coqtop -> unit task -> (unit -> unit) -> unit
       before its completion.
     - The task callback should run its inner continuation at the end. *)
 
-(** {5 Atomic calls to coqtop} *)
+(** {5 Atomic calls to coqtop } *)
 
 (** These atomic calls can be combined to form arbitrary multi-call
     tasks.  They correspond to the protocol calls. Note that each call
@@ -270,24 +258,6 @@ val search     : search_flags -> string coq_object list query
 
 (** {5 Miscellaneous} *)
 
-val short_version : unit -> string
-(** Return a short phrase identifying coqtop version and date of compilation, as
-    given by the [configure] script. *)
-
-val version : unit -> string
-(** More verbose description, including details about libraries and
-    architecture. *)
-
-val filter_coq_opts : string list -> string list
-(** * Launch a test coqtop processes, ask for a correct coqtop if it fails.
-    @return the list of arguments that coqtop did not understand
-    (the files probably ..). This command may terminate coqide in
-    case of trouble.  *)
-
-val check_connection : string list -> unit
-(** Launch a coqtop with the user args in order to be sure that it works,
-    checking in particular that Prelude.vo is found. This command
-    may terminate coqide in case of trouble *)
-
 val interrupter : (int -> unit) ref
 
+val version : unit -> string

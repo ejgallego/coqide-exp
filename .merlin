@@ -1,5 +1,5 @@
 S ide
-B _build/ide
+B _build/ide/
 
 S /home/egallego/external/coq-git/**
 B /home/egallego/external/coq-git/**
@@ -7,5 +7,5 @@ B /home/egallego/external/coq-git/**
 S /home/egallego/research/coq-serapi/**
 B /home/egallego/research/coq-serapi/_build/**
 
-PKG unix lablgtk2 lablgtk2.sourceview2 sexplib ppx_sexp_conv
-
+FLG -rectypes
+PKG unix lablgtk2 lablgtk2.sourceview2 sexplib

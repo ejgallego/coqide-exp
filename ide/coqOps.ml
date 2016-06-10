@@ -13,11 +13,13 @@ open Feedback
 
 let b2c = byte_offset_to_char_offset
 
-type flag = [ `INCOMPLETE | `UNSAFE | `PROCESSING | `ERROR of Loc.t * string ]
+type flag     = [ `INCOMPLETE | `UNSAFE | `PROCESSING | `ERROR of Loc.t * string ]
 type mem_flag = [ `INCOMPLETE | `UNSAFE | `PROCESSING | `ERROR ]
+
 let mem_flag_of_flag : flag -> mem_flag = function
   | `ERROR _ -> `ERROR
   | (`INCOMPLETE | `UNSAFE | `PROCESSING) as mem_flag -> mem_flag
+
 let str_of_flag = function
   | `UNSAFE -> "U"
   | `PROCESSING -> "P"
@@ -130,26 +132,24 @@ let log msg : unit task =
 
 class type ops =
 object
-  method go_to_insert : unit task
-  method go_to_mark : GText.mark -> unit task
-  method tactic_wizard : string list -> unit task
-  method process_next_phrase : unit task
+  method go_to_insert               : unit task
+  method go_to_mark                 : GText.mark -> unit task
+  method tactic_wizard              : string list -> unit task
+  method process_next_phrase        : unit task
   method process_until_end_or_error : unit task
-  method handle_reset_initial : Coq.reset_kind -> unit task
-  method raw_coq_query : string -> unit task
-  method show_goals : unit task
-  method backtrack_last_phrase : unit task
-  method initialize : unit task
-  method join_document : unit task
-  method stop_worker : string -> unit task
+  method raw_coq_query              : string -> unit task
+  method show_goals                 : unit task
+  method backtrack_last_phrase      : unit task
+  method join_document              : unit task
+  method stop_worker                : string -> unit task
 
-  method get_n_errors : int
-  method get_errors : (int * string) list
-  method get_slaves_status : int * int * string CString.Map.t
+  method get_n_errors               : int
+  method get_errors                 : (int * string) list
+  method get_slaves_status          : int * int * string CString.Map.t
 
-  method handle_failure : Stateid.t * Coq.location * Richpp.richpp -> unit task
+  method handle_failure             : Stateid.t * Coq.location * Richpp.richpp -> unit task
 
-  method destroy : unit -> unit
+  method destroy                    : unit -> unit
 end
 
 let flags_to_color f =
@@ -772,10 +772,10 @@ object(self)
 
   method backtrack_last_phrase =
     messages#clear;
-    try 
+    try
       let tgt = Doc.before_tip document in
       self#backtrack_to_id tgt
-    with Not_found -> Coq.return (Coq.reset_coqtop _ct)
+    with Not_found -> failwith "failure in backtrack_last_phrase: previously we resetted coqtop."
 
   method go_to_insert =
     Coq.bind (Coq.return ()) (fun () ->
@@ -840,45 +840,5 @@ object(self)
         try_phrase ("progress "^p^".") (insert_phrase (p^".")) (loop l')
     in
     loop l
-
-  method handle_reset_initial why =
-    let action () =
-      if why = Coq.Unexpected then warning "Coqtop died badly. Resetting."
-      else
-      (* clear the stack *)
-      if Doc.focused document then Doc.unfocus document;
-      while not (Doc.is_empty document) do
-        let phrase = Doc.pop document in
-        buffer#delete_mark phrase.start;
-        buffer#delete_mark phrase.stop
-      done;
-      List.iter
-        (buffer#remove_tag ~start:buffer#start_iter ~stop:buffer#end_iter)
-        Tags.Script.all;
-      (* reset the buffer *)
-      buffer#move_mark ~where:buffer#start_iter (`NAME "start_of_input");
-      buffer#move_mark ~where:buffer#end_iter (`NAME "stop_of_input");
-      Sentence.tag_all buffer;
-      (* clear the views *)
-      messages#clear;
-      proof#clear ();
-      clear_info ();
-      processed <- 0;
-      to_process <- 0;
-      push_info "Restarted";
-      (* apply the initial commands to coq *)
-    in
-    Coq.seq (Coq.lift action) self#initialize
-
-  method initialize =
-    let get_initial_state =
-      let next = function
-      | Fail (_, _, message) ->
-        let message = "Couldn't initialize coqtop\n\n" ^ (Richpp.raw_print message) in
-        let popup = GWindow.message_dialog ~buttons:GWindow.Buttons.ok ~message_type:`ERROR ~message () in
-        ignore (popup#run ()); exit 1
-      | Good id -> initial_state <- id; Coq.return () in
-      Coq.bind (Coq.init (get_filename ())) next in
-    Coq.seq get_initial_state Coq.PrintOpt.enforce
 
 end

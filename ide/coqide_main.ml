@@ -135,12 +135,8 @@ let load_prefs () =
 
 let () =
   load_prefs ();
-  let argl = List.tl (Array.to_list Sys.argv) in
-  let argl = Coqide.read_coqide_args argl in
-  let files = Coq.filter_coq_opts argl in
-  let args = List.filter (fun x -> not (List.mem x files)) argl in
-  Coq.check_connection args;
-  Coqide.sup_args := args;
+  let argl  = List.tl (Array.to_list Sys.argv) in
+  let files = Coqide.read_coqide_args argl in
   Coqide.main files;
   if !Coq_config.with_geoproof then Coqide.check_for_geoproof_input ();
   os_specific_init ();

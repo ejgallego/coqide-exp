@@ -711,7 +711,7 @@ let initial_about () =
   let initial_string =
     "Welcome to CoqIDE, an Integrated Development Environment for Coq"
   in
-  let coq_version = Coq.short_version () in
+  let coq_version  = Coq.version () in
   let version_info =
     if Glib.Utf8.validate coq_version then
       "\nYou are running " ^ coq_version
@@ -765,7 +765,7 @@ let coqtop_arguments sn =
   let dialog = GWindow.dialog ~title:"Coqtop arguments" () in
   let coqtop = sn.coqtop in
   (** Text entry *)
-  let args = Coq.get_arguments coqtop in
+  let args = Array.to_list @@ Coq.get_arguments coqtop in
   let text = String.concat " " args in
   let entry = GEdit.entry ~text ~packing:dialog#vbox#add () in
   (** Buttons *)
@@ -774,13 +774,13 @@ let coqtop_arguments sn =
   let ok_cb () =
     let nargs = CString.split ' ' entry#text in
     if nargs <> args then
-      let failed = Coq.filter_coq_opts nargs in
-      match failed with
-      | [] ->
-        let () = Coq.set_arguments coqtop nargs in
-        dialog#destroy ()
-      | args ->
-        let args = String.concat " " args in
+      (* let failed = Coq.filter_coq_opts nargs in *)
+      (* match failed with *)
+      (* | [] -> *)
+      (*   let () = Coq.set_arguments coqtop nargs in *)
+      (*   dialog#destroy () *)
+      (* | args -> *)
+        let args = String.concat " " nargs in
         let msg = Printf.sprintf "Invalid arguments: %s" args in
         let () = sn.messages#clear in
         sn.messages#push Feedback.Error (Richpp.richpp_of_string msg)
