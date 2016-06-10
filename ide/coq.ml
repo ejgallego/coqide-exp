@@ -520,7 +520,7 @@ let proto_call ?(logger=default_logger) call handle k =
 (* Stop_worker                                                            *)
 (**************************************************************************)
 let stop_worker x =
-  proto_call (Ser_protocol.Quit)
+  proto_call (Sertop_protocol.Quit)
 
 let break_coqtop coqtop workers =
   if coqtop.status = Busy then
@@ -602,23 +602,23 @@ type verbose = bool
 (* Add                                                                    *)
 (**************************************************************************)
 
-let add ?(logger=default_logger)   x = proto_call ~logger (Ser_protocol.Quit)
+let add ?(logger=default_logger)   x = proto_call ~logger (Sertop_protocol.Quit)
 
 (**************************************************************************)
 (* Edit_at                                                                *)
 (**************************************************************************)
 
-let edit_at                        i = proto_call         (Ser_protocol.Quit)
+let edit_at                        i = proto_call         (Sertop_protocol.Quit)
 
 (**************************************************************************)
 (* Query                                                                  *)
 (**************************************************************************)
-let query ?(logger=default_logger) x = proto_call ~logger (Ser_protocol.Quit)
+let query ?(logger=default_logger) x = proto_call ~logger (Sertop_protocol.Quit)
 
 (**************************************************************************)
 (* mkcases                                                                *)
 (**************************************************************************)
-let mkcases                        s = proto_call         (Ser_protocol.Quit)
+let mkcases                        s = proto_call         (Sertop_protocol.Quit)
 
 (**************************************************************************)
 (* Status                                                                 *)
@@ -633,12 +633,12 @@ type status = {
   status_proofnum : int;
   (** An id describing the state of the current proof. *)
 }
-let status ?logger force             = proto_call ?logger (Ser_protocol.Quit)
+let status ?logger force             = proto_call ?logger (Sertop_protocol.Quit)
 
 (**************************************************************************)
 (* Init                                                                   *)
 (**************************************************************************)
-let init x                           = proto_call         (Ser_protocol.Quit)
+let init x                           = proto_call         (Sertop_protocol.Quit)
 
 (**************************************************************************)
 (* Goals                                                                  *)
@@ -670,7 +670,7 @@ type 'a pre_goals = {
 type goals = goal pre_goals
 
 let goals ?logger x h k =
-  PrintOpt.enforce h (fun () -> proto_call ?logger (Ser_protocol.Quit) h k)
+  PrintOpt.enforce h (fun () -> proto_call ?logger (Sertop_protocol.Quit) h k)
 
 (**************************************************************************)
 (* Evars                                                                  *)
@@ -684,13 +684,13 @@ type evar = {
 }
 
 let evars x h k =
-  PrintOpt.enforce h (fun () -> proto_call (Ser_protocol.Quit) h k)
+  PrintOpt.enforce h (fun () -> proto_call (Sertop_protocol.Quit) h k)
 
 (**************************************************************************)
 (* Hints                                                                  *)
 (**************************************************************************)
 type hint = (string * string) list
-let hints x                          = proto_call         (Ser_protocol.Quit)
+let hints x                          = proto_call         (Sertop_protocol.Quit)
 
 (**************************************************************************)
 (* Search                                                                 *)
@@ -721,4 +721,4 @@ type 'a coq_object = {
   coq_object_qualid : string list;
   coq_object_object : 'a;
 }
-let search flags                     = proto_call         (Ser_protocol.Quit)
+let search flags                     = proto_call         (Sertop_protocol.Quit)
